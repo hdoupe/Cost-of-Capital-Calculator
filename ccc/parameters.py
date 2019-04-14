@@ -6,26 +6,28 @@ import numpy as np
 import pickle
 import pkg_resources
 
+import paramtools
+
 # import ccc
-from ccc.parametersbase import ParametersBase
 from ccc.get_taxcalc_rates import get_rates
 from ccc.calc_z import calc_tax_depr_rates, get_econ_depr
 from ccc.utils import read_from_egg, DEFAULT_START_YEAR, RECORDS_START_YEAR
 
 
-class Specifications(ParametersBase):
+CURRENT_PATH = os.path.abspath(os.path.dirname(__file__))
+
+
+class Specifications(paramtools.Parameters):
     """
     Inherits ParametersBase. Implements the PolicyBrain API for Cost-of-Capital-Calculator
     """
-    DEFAULTS_FILENAME = 'default_parameters.json'
+    defaults = os.path.join(CURRENT_PATH, "default_parameters.json")
+    schema = os.path.join(CURRENT_PATH, "schema.json")
+    array_first = True
 
     def __init__(self, test=False, time_path=True, baseline=False,
                  year=2018, call_tc=False, iit_reform={}, data='cps'):
-        super(Specifications, self).__init__()
-
-        # reads in default parameter values
-        self._vals = self._params_dict_from_json_file()
-
+        super().__init__()
         self.test = test
         self.baseline = baseline
         self.year = year
@@ -39,30 +41,29 @@ class Specifications(ParametersBase):
             # Find individual income tax rates from Tax-Calculator
             indiv_rates = get_rates(self.baseline, self.year,
                                     self.iit_reform, self.data)
-        else:
-            # Set indiv rates to some values
-            indiv_rates = {'tau_nc': np.array([0.1929392]),
-                           'tau_div': np.array([0.1882453]),
-                           'tau_int': np.array([0.31239301]),
-                           'tau_scg': np.array([0.29068557]),
-                           'tau_lcg': np.array([0.18837299]),
-                           'tau_td': np.array([0.21860396]),
-                           'tau_h': np.array([0.04376291])}
-        self.tau_nc = indiv_rates['tau_nc']
-        self.tau_div = indiv_rates['tau_div']
-        self.tau_int = indiv_rates['tau_int']
-        self.tau_scg = indiv_rates['tau_scg']
-        self.tau_lcg = indiv_rates['tau_lcg']
-        self.tau_xcg = 0.00  # tax rate on capital gains held to death
-        self.tau_td = indiv_rates['tau_td']
-        self.tau_h = indiv_rates['tau_h']
+
+
+        # Why aren't these set in the defaults JSON file?
+        # else:
+        #     # Set indiv rates to some values
+        #     indiv_rates = {'tau_nc': np.array([0.1929392]),
+        #                    'tau_div': np.array([0.1882453]),
+        #                    'tau_int': np.array([0.31239301]),
+        #                    'tau_scg': np.array([0.29068557]),
+        #                    'tau_lcg': np.array([0.18837299]),
+        #                    'tau_td': np.array([0.21860396]),
+        #                    'tau_h': np.array([0.04376291])}
+        # self.tau_nc = indiv_rates['tau_nc']
+        # self.tau_div = indiv_rates['tau_div']
+        # self.tau_int = indiv_rates['tau_int']
+        # self.tau_scg = indiv_rates['tau_scg']
+        # self.tau_lcg = indiv_rates['tau_lcg']
+        # self.tau_xcg = 0.00  # tax rate on capital gains held to death
+        # self.tau_td = indiv_rates['tau_td']
+        # self.tau_h = indiv_rates['tau_h']
 
         # does cheap calculations to find parameter values
         self.initialize()
-
-        self.parameter_warnings = ''
-        self.parameter_errors = ''
-        self._ignore_errors = False
 
     def initialize(self):
         """
@@ -73,32 +74,6 @@ class Specifications(ParametersBase):
         run_micro: boolean that indicates whether to estimate tax funtions
                    from microsim model
         """
-        for name, data in self._vals.items():
-            intg_val = data.get('integer_value', None)
-            bool_val = data.get('boolean_value', None)
-            string_val = data.get('string_value', None)
-            values = data.get('value', None)
-            # choose just value for one year
-            data_startyear = data.get('start_year', None)
-            try:
-                if len(values) > 1:
-                    value = values[self.year - data_startyear]
-                else:
-                    value = values
-            except TypeError:
-                value = values
-
-            # this if statement is to avoid errors when trying to
-            # expand list of all strings
-            if string_val:
-                # pass
-                setattr(self, name, self._expand_array(
-                    value, intg_val, bool_val, string_val))
-            else:
-                # setattr(self, name, self._expand_array(
-                #     values, intg_val, bool_val, string_val))
-                setattr(self, name, self._expand_array(
-                    value, intg_val, bool_val, string_val))
 
         self.compute_default_params()
 
@@ -158,7 +133,8 @@ class Specifications(ParametersBase):
         s_nc_e = E_nc
         s_nc = self.f_nc * s_nc_d + (1 - self.f_nc) * s_nc_e
         self.u = {'c': self.CIT_rate}
-        if not self.PT_entity_tax_ind:
+        # use .all() for numpy array
+        if not self.PT_entity_tax_ind.all():
             self.u['nc'] = self.tau_nc
         else:
             self.u['nc'] = self.PT_entity_tax_rate
@@ -191,7 +167,7 @@ class Specifications(ParametersBase):
 
         # if no entity level taxes on pass-throughs, ensure mettr and metr
         # on non-corp entities the same
-        if not self.PT_entity_tax_ind:
+        if not self.PT_entity_tax_ind.all():
             for f in self.financing_list:
                 r_prime['nc'][f] = self.s['nc'][f] + self.inflation_rate
         # If entity level tax, assume distribute earnings at same rate corps
@@ -275,22 +251,10 @@ class Specifications(ParametersBase):
             raise ValueError('ERROR: revision is not a dictionary')
         if not revision:
             return  # no revision to implement
-        revision_years = sorted(list(revision.keys()))
-        # check range of remaining revision_years
-        # validate revision parameter names and types
-        self.parameter_errors = ''
-        self.parameter_warnings = ''
-        self._validate_parameter_names_types(revision)
-        if not self._ignore_errors and self.parameter_errors:
-            raise ValueError(self.parameter_errors)
-        # implement the revision
-        revision_parameters = set()
-        revision_parameters.update(revision.keys())
-        self._update(revision)
-        # validate revision parameter values
-        self._validate_parameter_values(revision_parameters)
-        if self.parameter_errors and raise_errors:
-            raise ValueError('\n' + self.parameter_errors)
+        print(revision)
+        self.adjust(revision, raise_errors=False)
+        if self.errors and raise_errors:
+            raise ValueError('\n' + self.errors)
         self.compute_default_params()
 
     @staticmethod
@@ -333,143 +297,6 @@ class Specifications(ParametersBase):
 
         return rev_dict
 
-    def _validate_parameter_names_types(self, revision):
-        """
-        Check validity of parameter names and parameter types used
-        in the specified revision dictionary.
-        Parameters
-        ----------
-        revision: parameter dictionary of form {parameter_name: [value]}
-        Returns:
-        --------
-        nothing: void
-        Notes
-        -----
-        copied from taxcalc.Behavior._validate_parameter_names_types
-        """
-        param_names = set(self._vals.keys())
-        # print('Parameter names = ', param_names)
-        revision_param_names = list(revision.keys())
-        for param_name in revision_param_names:
-            if param_name not in param_names:
-                msg = '{} unknown parameter name'
-                self.parameter_errors += (
-                    'ERROR: ' + msg.format(param_name) + '\n'
-                )
-            else:
-                # check parameter value type avoiding use of isinstance
-                # because isinstance(True, (int,float)) is True, which
-                # makes it impossible to check float parameters
-                bool_param_type = self._vals[param_name]['boolean_value']
-                int_param_type = self._vals[param_name]['integer_value']
-                string_param_type = self._vals[param_name]['string_value']
-                if isinstance(revision[param_name], list):
-                    param_value = revision[param_name]
-                else:
-                    param_value = [revision[param_name]]
-                for idx in range(0, len(param_value)):
-                    pval = param_value[idx]
-                    pval_is_bool = type(pval) == bool
-                    pval_is_int = type(pval) == int
-                    pval_is_float = type(pval) == float
-                    pval_is_string = type(pval) == str
-                    if bool_param_type:
-                        if not pval_is_bool:
-                            msg = '{} value {} is not boolean'
-                            self.parameter_errors += (
-                                'ERROR: ' +
-                                msg.format(param_name, pval) +
-                                '\n'
-                            )
-                    elif int_param_type:
-                        if not pval_is_int:  # pragma: no cover
-                            msg = '{} value {} is not integer'
-                            self.parameter_errors += (
-                                'ERROR: ' +
-                                msg.format(param_name, pval) +
-                                '\n'
-                            )
-                    elif string_param_type:
-                        if not pval_is_string:  # pragma: no cover
-                            msg = '{} value {} is not string'
-                            self.parameter_errors += (
-                                'ERROR: ' +
-                                msg.format(param_name, pval) +
-                                '\n'
-                            )
-                    else:  # param is float type
-                        if not (pval_is_int or pval_is_float):
-                            msg = '{} value {} is not a number'
-                            self.parameter_errors += (
-                                'ERROR: ' +
-                                msg.format(param_name, pval) +
-                                '\n'
-                            )
-        del param_names
-
-    def _validate_parameter_values(self, parameters_set):
-        """
-        Check values of parameters in specified parameter_set using
-        range information from the current_law_policy.json file.
-        Parameters:
-        -----------
-        parameters_set: set of parameters whose values need to be validated
-        Returns:
-        --------
-        nothing: void
-        Notes
-        -----
-        copied from taxcalc.Policy._validate_parameter_values
-        """
-        dp = self.default_parameters()
-        parameters = sorted(parameters_set)
-        for param_name in parameters:
-            param_value = getattr(self, param_name)
-            if not hasattr(param_value, 'shape'):  # value is not a numpy array
-                param_value = np.array([param_value])
-            for validation_op, validation_value in self._vals[param_name]['range'].items():
-                if validation_op == 'possible_values':
-                    if param_value not in validation_value:
-                        out_of_range = True
-                        msg = '{} value {} not in possible values {}'
-                        if out_of_range:
-                            self.parameter_errors += (
-                                'ERROR: ' + msg.format(param_name,
-                                                       param_value,
-                                                       validation_value) + '\n'
-                                )
-                else:
-                    # print(validation_op, param_value, validation_value)
-                    if isinstance(validation_value, six.string_types):
-                        validation_value = self.simple_eval(validation_value)
-                    else:
-                        validation_value = np.full(param_value.shape,
-                                                   validation_value)
-                    assert param_value.shape == validation_value.shape
-                    for idx in np.ndindex(param_value.shape):
-                        out_of_range = False
-                        if validation_op == 'min' and (param_value[idx] <
-                                                       validation_value[idx]):
-                            out_of_range = True
-                            msg = '{} value {} < min value {}'
-                            extra = self._vals[param_name]['out_of_range_minmsg']
-                            if extra:
-                                msg += ' {}'.format(extra)
-                        if validation_op == 'max' and (param_value[idx] >
-                                                       validation_value[idx]):
-                            out_of_range = True
-                            msg = '{} value {} > max value {}'
-                            extra = self._vals[param_name]['out_of_range_maxmsg']
-                            if extra:
-                                msg += ' {}'.format(extra)
-                        if out_of_range:
-                            self.parameter_errors += (
-                                'ERROR: ' + msg.format(
-                                    param_name, param_value[idx],
-                                    validation_value[idx]) + '\n')
-        del dp
-        del parameters
-
 
 # copied from taxcalc.tbi.tbi.reform_errors_warnings--probably needs further
 # changes
@@ -487,11 +314,10 @@ def reform_warnings_errors(user_mods):
 
     # create Specifications object and implement reform
     specs = Specifications()
-    specs._ignore_errors = True
     try:
         specs.update_specifications(user_mods['ccc'], raise_errors=False)
-        rtn_dict['ccc']['warnings'] = specs.parameter_warnings
-        rtn_dict['ccc']['errors'] = specs.parameter_errors
+        rtn_dict['ccc']['warnings'] = []
+        rtn_dict['ccc']['errors'] = specs.errors
     except ValueError as valerr_msg:
         rtn_dict['ccc']['errors'] = valerr_msg.__str__()
     return rtn_dict

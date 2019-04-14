@@ -1,0 +1,10 @@
+{
+    "schema_name": "CCC",
+    "dims": {
+        "year": {"type": "int", "validators": {"range": {"min": 2015, "max": 2028}}}
+    },
+    "optional": {
+        "irs_ref": {"type": "str", "number_dims": 0},
+        "start_year": {"type": "int", "number_dims": 0}
+    }
+}
