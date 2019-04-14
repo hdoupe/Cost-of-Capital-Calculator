@@ -253,6 +253,8 @@ class Specifications(paramtools.Parameters):
         if not revision:
             return  # no revision to implement
         self.adjust(revision, raise_errors=False)
+
+        # update state if start year is specified in the revision.
         if "start_year" in revision:
             self.set_state(year=self.start_year)
         if self.errors and raise_errors:
