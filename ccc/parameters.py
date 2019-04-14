@@ -28,6 +28,7 @@ class Specifications(paramtools.Parameters):
     def __init__(self, test=False, time_path=True, baseline=False,
                  year=2018, call_tc=False, iit_reform={}, data='cps'):
         super().__init__()
+        self.set_state(year=self.start_year)
         self.test = test
         self.baseline = baseline
         self.year = year
@@ -251,8 +252,9 @@ class Specifications(paramtools.Parameters):
             raise ValueError('ERROR: revision is not a dictionary')
         if not revision:
             return  # no revision to implement
-        print(revision)
         self.adjust(revision, raise_errors=False)
+        if "start_year" in revision:
+            self.set_state(year=self.start_year)
         if self.errors and raise_errors:
             raise ValueError('\n' + self.errors)
         self.compute_default_params()
