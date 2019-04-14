@@ -53,9 +53,9 @@ diff_industry_df = ccc.utils.diff_two_tables(
     reform_industry_df, base_industry_df)
 
 # Save dataframes to disk as csv files
-base_industry_df.to_csv('baseline_byindustry.csv', encoding='utf-8')
-reform_industry_df.to_csv('reform_byindustry.csv', encoding='utf-8')
-base_assets_df.to_csv('baseline_byasset.csv', encoding='utf-8')
-reform_assets_df.to_csv('reform_byasset.csv', encoding='utf-8')
-diff_industry_df.to_csv('changed_byindustry.csv', encoding='utf-8')
-diff_assets_df.to_csv('changed_byasset.csv', encoding='utf-8')
+base_industry_df.to_csv('baseline_byindustry_expected.csv', encoding='utf-8')
+reform_industry_df.to_csv('reform_byindustry_expected.csv', encoding='utf-8')
+base_assets_df.to_csv('baseline_byasset_expected.csv', encoding='utf-8')
+reform_assets_df.to_csv('reform_byasset_expected.csv', encoding='utf-8')
+diff_industry_df.to_csv('changed_byindustry_expected.csv', encoding='utf-8')
+diff_assets_df.to_csv('changed_byasset_expected.csv', encoding='utf-8')
