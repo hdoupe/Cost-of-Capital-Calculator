@@ -28,9 +28,14 @@ calc1 = Calculator(baseline_parameters, assets)
 reform_parameters = Specifications(year=2018, call_tc=True,
                                    iit_reform=iit_reform)
 business_tax_adjustments = {
-    'CIT_rate': 0.35, 'BonusDeprec_3yr': 0.50, 'BonusDeprec_5yr': 0.50,
-    'BonusDeprec_7yr': 0.50, 'BonusDeprec_10yr': 0.50,
-    'BonusDeprec_15yr': 0.50, 'BonusDeprec_20yr': 0.50}
+    'CIT_rate': [{"year": 2018, "value": 0.35}],
+    'BonusDeprec_3yr': [{"year": 2018, "value": 0.50}],
+    'BonusDeprec_5yr': [{"year": 2018, "value": 0.50}],
+    'BonusDeprec_7yr': [{"year": 2018, "value": 0.50}],
+    'BonusDeprec_10yr': [{"year": 2018, "value": 0.50}],
+    'BonusDeprec_15yr': [{"year": 2018, "value": 0.50}],
+    'BonusDeprec_20yr': [{"year": 2018, "value": 0.50}]
+}
 reform_parameters.update_specifications(business_tax_adjustments)
 calc2 = Calculator(reform_parameters, assets)
 
