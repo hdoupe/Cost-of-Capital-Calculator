@@ -6,7 +6,6 @@ from ccc.utils import str_modified
 def update_depr_methods(df, p):
     # update tax_deprec_rates based on user defined parameters
     df['System'] = df['GDS Life'].apply(str_modified)
-    print("system", df["System"], p.deprec_system)
     df['System'].replace(p.deprec_system, inplace=True)
     df.loc[df['System'] == 'ADS', 'Method'] = 'SL'
     df.loc[df['System'] == 'Economic', 'Method'] = 'Economic'
