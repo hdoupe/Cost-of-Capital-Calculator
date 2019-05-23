@@ -15,7 +15,7 @@ requirements:
     - xlrd
 
   run:
-    - python=3.6
+    - python
     - taxcalc
     - setuptools
     - paramtools>=0.5.1
