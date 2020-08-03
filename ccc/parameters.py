@@ -1,5 +1,6 @@
 import os
 import paramtools
+from paramtools.contrib.fields import Nested
 import marshmallow as ma
 
 # import ccc
@@ -213,10 +214,15 @@ class DepreciationRules(ma.Schema):
             "SL", "Expensing", "DB 150%", "DB 200%", "Economic"])
     )
 
+    def cmp_funcs(self):
+        return {
+            "key": lambda x: (x["life"], x["method"])
+        }
+
 
 # Register custom type defined above
 paramtools.register_custom_type("depreciation_rules",
-                                ma.fields.Nested(DepreciationRules()))
+                                Nested(DepreciationRules()))
 
 
 class DepreciationParams(paramtools.Parameters):
